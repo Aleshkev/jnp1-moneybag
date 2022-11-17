@@ -5,29 +5,28 @@
 #include <iostream>
 #include <stdexcept>
 
-// TODO: wszystkie funkcje constexpr powinny mieć implementację w pliku
-//  nagłówkowym???
-
 namespace {
-template <typename T> constexpr T add_unsigned(T a, T b) {
-  if (a + b < a)
-    throw std::out_of_range("can't store the result");
-  return a + b;
-}
+  template <typename T> constexpr T add_unsigned(T a, T b) {
+    if (a + b < a)
+      throw std::out_of_range("can't store the result");
+    return a + b;
+  }
 
-template <typename T> constexpr T subtract_unsigned(T a, T b) {
-  if (a < b)
-    throw std::out_of_range("can't store the result");
-  return a - b;
-}
-template <typename T> constexpr T multiply_unsigned(T a, T b) {
-  if (a > 0 && b > ((T)-1) / a)
-    throw std::out_of_range("can't store the result");
-  return a * b;
-}
+  template <typename T> constexpr T subtract_unsigned(T a, T b) {
+    if (a < b)
+      throw std::out_of_range("can't store the result");
+    return a - b;
+  }
+  template <typename T> constexpr T multiply_unsigned(T a, T b) {
+    if (a > 0 && b > ((T)-1) / a)
+      throw std::out_of_range("can't store the result");
+    return a * b;
+  }
 } // namespace
 
+//--------------
 class Moneybag {
+//--------------
 public:
   using coin_number_t = uint64_t;
 
@@ -66,9 +65,20 @@ public:
 
   // Wykonywanie operacji dodawania, odejmowania zawartości sakiewek oraz
   // mnożenia zawartości sakiewki przez liczbę całkowitą nieujemną.
-  constexpr Moneybag operator+(const Moneybag &that) const;
-  constexpr Moneybag operator-(const Moneybag &that) const;
-  constexpr Moneybag operator*(coin_number_t that) const;
+  constexpr Moneybag operator+(const Moneybag &that) const {
+    return {add_unsigned(livres, that.livres),
+            add_unsigned(soliduses, that.soliduses),
+            add_unsigned(deniers, that.deniers)};
+  }
+  constexpr Moneybag operator-(const Moneybag &that) const {
+    return {subtract_unsigned(livres, that.livres),
+            subtract_unsigned(soliduses, that.soliduses),
+            subtract_unsigned(deniers, that.deniers)};
+  }
+  constexpr Moneybag operator*(coin_number_t that) const {
+    return {multiply_unsigned(livres, that), multiply_unsigned(soliduses, that),
+          multiply_unsigned(deniers, that)};
+  }
   Moneybag &operator+=(const Moneybag &that);
   Moneybag &operator-=(const Moneybag &that);
   Moneybag &operator*=(coin_number_t that);
@@ -77,10 +87,21 @@ public:
   // naturalny porządek częściowy.
   // "Jeśli a >= b to a - b nie zwraca wyjątku."
   constexpr bool operator==(const Moneybag &that) const {
-    return livres == that.livres && soliduses == that.soliduses &&
-           deniers == that.deniers;
+    return livres == that.livres && soliduses == that.soliduses && deniers == that.deniers;
   }
-  constexpr std::partial_ordering operator<=>(const Moneybag &that) const;
+ //!(Moneybag(1, 2, 2) <= Moneybag(2, 2, 1))' failed.
+  constexpr std::partial_ordering operator<=>(const Moneybag &that) const {
+	if (livres == that.livres && soliduses == that.soliduses &&
+      deniers == that.deniers)
+    return std::partial_ordering::equivalent;
+  if (livres <= that.livres && soliduses <= that.soliduses &&
+      deniers <= that.deniers)
+    return std::partial_ordering::less;
+  if (livres >= that.livres && soliduses >= that.soliduses &&
+      deniers >= that.deniers)
+    return std::partial_ordering::greater;
+  return std::partial_ordering::unordered;
+  }
 
   // Rzutowanie sakiewki na typ bool, informujące, czy sakiewka jest niepusta
   // (zawiera choć jedną monetę).
@@ -101,7 +122,9 @@ constexpr Moneybag Denier(0, 0, 1);
 // Wysłanie na strumień wyjściowy napisu reprezentującego zawartość sakiewki.
 std::ostream &operator<<(std::ostream &o, const Moneybag &bag);
 
+//-----------
 class Value {
+//-----------
 private:
   const Moneybag::coin_number_t deniers = 0;
 
@@ -109,8 +132,14 @@ public:
   // Utworzenie wartości na podstawie sakiewki lub liczby całkowitej
   // nieujemnej.
   constexpr Value() = default;
-  constexpr explicit Value(Moneybag bag);
-  constexpr explicit Value(Moneybag::coin_number_t deniers);
+  constexpr explicit Value(Moneybag bag) : deniers(add_unsigned(
+          add_unsigned(multiply_unsigned(bag.livre_number(),
+                                         (Moneybag::coin_number_t)240),
+                       multiply_unsigned(bag.solidus_number(),
+                                         (Moneybag::coin_number_t)240/20)),
+          bag.denier_number())) {}
+
+  constexpr explicit Value(Moneybag::coin_number_t deniers) : deniers(deniers) {}
 
   // Kopiowanie wartości.
   constexpr Value(const Value &that) = default;
@@ -120,17 +149,21 @@ public:
   constexpr bool operator==(const Value &that) const {
     return deniers == that.deniers;
   }
-  constexpr std::strong_ordering operator<=>(const Value &that) const;
-
+  constexpr std::strong_ordering operator<=>(const Value &that) const {
+	return deniers <=> that.deniers;
+  }
   // Porównywanie wartości z liczbami całkowitymi nieujemnymi.
-  constexpr std::strong_ordering
-  operator<=>(Moneybag::coin_number_t that) const {
+  constexpr bool operator==(Moneybag::coin_number_t that) const {
+    return deniers == that;
+  }
+
+  constexpr std::strong_ordering operator<=>(Moneybag::coin_number_t that) const {
     return deniers <=> that;
   };
 
   // Rzutowanie wartości na obiekt klasy string reprezentujący wartość w
   // zapisie dziesiętnym.
-  explicit operator std::string() const;
+  explicit operator std::string() const { return std::to_string(deniers); }
 };
 
 #endif // MONEYBAG_H
