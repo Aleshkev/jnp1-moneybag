@@ -126,20 +126,22 @@ std::ostream &operator<<(std::ostream &o, const Moneybag &bag);
 class Value {
 //-----------
 private:
-  const Moneybag::coin_number_t deniers = 0;
+  const __uint128_t deniers = 0;
 
 public:
+
+  using value_t = __uint128_t;
   // Utworzenie wartości na podstawie sakiewki lub liczby całkowitej
   // nieujemnej.
   constexpr Value() = default;
   constexpr explicit Value(Moneybag bag) : deniers(add_unsigned(
-          add_unsigned(multiply_unsigned(bag.livre_number(),
-                                         (Moneybag::coin_number_t)240),
-                       multiply_unsigned(bag.solidus_number(),
-                                         (Moneybag::coin_number_t)240/20)),
-          bag.denier_number())) {}
+          add_unsigned(multiply_unsigned((value_t)bag.livre_number(),
+                                         (value_t)240),
+                       multiply_unsigned((value_t)bag.solidus_number(),
+                                         (value_t)240/20)),
+          (value_t)bag.denier_number())) {}
 
-  constexpr explicit Value(Moneybag::coin_number_t deniers) : deniers(deniers) {}
+  constexpr explicit Value(value_t deniers) : deniers(deniers) {}
 
   // Kopiowanie wartości.
   constexpr Value(const Value &that) = default;
@@ -153,7 +155,7 @@ public:
 	return deniers <=> that.deniers;
   }
   // Porównywanie wartości z liczbami całkowitymi nieujemnymi.
-  constexpr bool operator==(Moneybag::coin_number_t that) const {
+  constexpr bool operator==(value_t that) const {
     return deniers == that;
   }
 
@@ -163,7 +165,15 @@ public:
 
   // Rzutowanie wartości na obiekt klasy string reprezentujący wartość w
   // zapisie dziesiętnym.
-  explicit operator std::string() const { return std::to_string(deniers); }
+  explicit operator std::string() const {
+	if (deniers/1000 > 0)
+	  return
+		std::to_string((Moneybag::coin_number_t)(deniers/1000)) +
+		std::to_string((Moneybag::coin_number_t)(deniers%1000));
+	  else
+		return
+		  std::to_string((Moneybag::coin_number_t)(deniers));
+  }
 };
 
 #endif // MONEYBAG_H
