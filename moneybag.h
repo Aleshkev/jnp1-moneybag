@@ -30,8 +30,9 @@ public:
 
 private:
   coin_number_t livres, soliduses, deniers;
-  inline void set_value(coin_number_t new_livres, coin_number_t new_soliduses,
-                        coin_number_t new_deniers) {
+  constexpr void set_value(coin_number_t new_livres,
+                           coin_number_t new_soliduses,
+                           coin_number_t new_deniers) {
     livres = new_livres, soliduses = new_soliduses, deniers = new_deniers;
   }
 
@@ -63,23 +64,41 @@ public:
 
   // Wykonywanie operacji dodawania, odejmowania zawartości sakiewek oraz
   // mnożenia zawartości sakiewki przez liczbę całkowitą nieujemną.
+  constexpr Moneybag operator+=(const Moneybag &that) {
+    set_value(add_unsigned(livres, that.livres),
+              add_unsigned(soliduses, that.soliduses),
+              add_unsigned(deniers, that.deniers));
+    return *this;
+  }
+
+  constexpr Moneybag operator-=(const Moneybag &that) {
+    set_value(subtract_unsigned(livres, that.livres),
+              subtract_unsigned(soliduses, that.soliduses),
+              subtract_unsigned(deniers, that.deniers));
+    return *this;
+  }
+
+  constexpr Moneybag operator*=(Moneybag::coin_number_t that) {
+    set_value(multiply_unsigned(livres, that),
+              multiply_unsigned(soliduses, that),
+              multiply_unsigned(deniers, that));
+    return *this;
+  }
   constexpr Moneybag operator+(const Moneybag &that) const {
-    return {add_unsigned(livres, that.livres),
-            add_unsigned(soliduses, that.soliduses),
-            add_unsigned(deniers, that.deniers)};
+    Moneybag x = *this;
+    x += that;
+    return x;
   }
   constexpr Moneybag operator-(const Moneybag &that) const {
-    return {subtract_unsigned(livres, that.livres),
-            subtract_unsigned(soliduses, that.soliduses),
-            subtract_unsigned(deniers, that.deniers)};
+    Moneybag x = *this;
+    x -= that;
+    return x;
   }
   constexpr Moneybag operator*(coin_number_t that) const {
-    return {multiply_unsigned(livres, that), multiply_unsigned(soliduses, that),
-            multiply_unsigned(deniers, that)};
+    Moneybag x = *this;
+    x *= that;
+    return x;
   }
-  Moneybag &operator+=(const Moneybag &that);
-  Moneybag &operator-=(const Moneybag &that);
-  Moneybag &operator*=(coin_number_t that);
 
   // Porównywanie zawartości sakiewek – na sakiewkach zdefiniowany jest
   // naturalny porządek częściowy.
@@ -138,7 +157,7 @@ public:
                                   (value_t)240 / 20)),
             (value_t)bag.denier_number())) {}
 
-  constexpr explicit Value(value_t deniers) : deniers(deniers) {}
+  constexpr Value(value_t deniers) : deniers(deniers) {}
 
   // Kopiowanie wartości.
   constexpr Value(const Value &that) = default;
@@ -162,11 +181,13 @@ public:
   // Rzutowanie wartości na obiekt klasy string reprezentujący wartość w
   // zapisie dziesiętnym.
   explicit operator std::string() const {
-    if (deniers / 1000 > 0)
+    if (deniers / 1000 > 0) {
+      auto right = std::to_string((Moneybag::coin_number_t)(deniers % 1000));
       return std::to_string((Moneybag::coin_number_t)(deniers / 1000)) +
-             std::to_string((Moneybag::coin_number_t)(deniers % 1000));
-    else
+             std::string(3 - right.size(), '0') + right;
+    } else {
       return std::to_string((Moneybag::coin_number_t)(deniers));
+    }
   }
 };
 
